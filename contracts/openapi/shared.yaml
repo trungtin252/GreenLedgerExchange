@@ -1,0 +1,77 @@
+components:
+  schemas:
+    ProblemDetails:
+      type: object
+      required: [type, title, status, correlationId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        correlationId:
+          type: string
+          format: uuid
+    PageMetadata:
+      type: object
+      required: [page, size, totalElements]
+      properties:
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          minimum: 0
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?[0-9]+(\\.[0-9]+)?$'
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}(-DEMO)?$'
+    Quantity:
+      type: object
+      required: [amount, unit]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?[0-9]+(\\.[0-9]+)?$'
+        unit:
+          type: string
+    ResourceReference:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+    CorrelationMetadata:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+  responses:
+    Problem:
+      description: RFC 9457-compatible problem response.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'

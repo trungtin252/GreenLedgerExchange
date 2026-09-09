@@ -1,0 +1,20 @@
+title = "GLX secret scanning policy"
+
+[extend]
+useDefault = true
+
+# `verify --full` scans an uncommitted working tree so that new source files are
+# covered before their first commit. Exclude only local configuration and build
+# artefacts that are already excluded from version control; CI never needs to
+# inspect them and their third-party contents create false positives.
+[allowlist]
+description = "Untracked local configuration and generated artefacts"
+paths = [
+  '''(^|/)\.env(?:\..*)?$''',
+  '''(^|/)\.local/''',
+  '''(^|/)\.tools/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)(?:target|dist|coverage|playwright-report|test-results)/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)(?:__pycache__|\.pytest_cache|\.ruff_cache|\.mypy_cache|\.pyright)/''',
+]

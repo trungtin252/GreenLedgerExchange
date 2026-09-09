@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: registry-mrv-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    url: ${REGISTRY_DB_URL:jdbc:postgresql://localhost:5432/glx_registry}
+    username: ${REGISTRY_DB_USERNAME:registry_runtime}
+    password: ${REGISTRY_DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration/registry
+    user: ${REGISTRY_MIGRATOR_USERNAME:registry_migrator}
+    password: ${REGISTRY_MIGRATOR_PASSWORD:}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/glx-local}
+server:
+  port: 8081
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+logging:
+  structured:
+    format:
+      console: logstash
+glx:
+  runtime:
+    environment: ${GLX_ENVIRONMENT:local}
+    sandbox: true
+  security:
+    jwt:
+      enabled: ${GLX_JWT_ENABLED:true}
+      issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/glx-local}
+      audience: ${GLX_SERVICE_AUDIENCE:glx-services}

@@ -1,0 +1,15 @@
+{
+  "environment": "local",
+  "sandbox": true,
+  "profile": {
+    "subject": "local-demo-user",
+    "displayName": "Demo User"
+  },
+  "roles": ["ROLE_GLX_VIEWER"],
+  "capabilities": {
+    "registry.read": true,
+    "exchange.read": true
+  },
+  "organizations": [],
+  "activeOrganizationId": null
+}

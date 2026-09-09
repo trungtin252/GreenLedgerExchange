@@ -1,0 +1,8 @@
+{
+  "request": { "method": "GET", "url": "/vnpay/health" },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "provider": "VNPAY-SANITIZED", "status": "ok" }
+  }
+}

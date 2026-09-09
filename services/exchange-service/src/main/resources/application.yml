@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: exchange-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    url: ${EXCHANGE_DB_URL:jdbc:postgresql://localhost:5432/glx_exchange}
+    username: ${EXCHANGE_DB_USERNAME:exchange_runtime}
+    password: ${EXCHANGE_DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration/exchange
+    user: ${EXCHANGE_MIGRATOR_USERNAME:exchange_migrator}
+    password: ${EXCHANGE_MIGRATOR_PASSWORD:}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/glx-local}
+server:
+  port: 8082
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+logging:
+  structured:
+    format:
+      console: logstash
+glx:
+  runtime:
+    environment: ${GLX_ENVIRONMENT:local}
+    sandbox: true
+  security:
+    jwt:
+      enabled: ${GLX_JWT_ENABLED:true}
+      issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/glx-local}
+      audience: ${GLX_SERVICE_AUDIENCE:glx-services}

@@ -1,0 +1,189 @@
+name: pull-request
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: path detection
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 2
+      - id: diff
+        shell: bash
+        run: |
+          if git diff --name-only HEAD^ HEAD | tee changed-files.txt; then
+            echo "changed=$(tr '\n' ',' < changed-files.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=unavailable" >> "$GITHUB_OUTPUT"
+          fi
+
+  contracts:
+    name: contracts
+    needs: changes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
+      - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/contracts run check
+
+  backend:
+    name: backend unit and modules
+    needs: changes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: mvn --batch-mode test
+
+  frontend:
+    name: frontend lint type test build
+    needs: changes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
+      - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run lint && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run typecheck && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run test && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run build
+
+  ai:
+    name: ai lint type unit
+    needs: changes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - run: pipx install uv
+      - run: uv --project services/ai-verification sync --locked --all-groups
+      - run: uv --project services/ai-verification run ruff check services/ai-verification && uv --project services/ai-verification run pyright && uv --project services/ai-verification run pytest
+
+  backend-integration:
+    name: backend integration
+    needs: [backend, ai]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: mvn --batch-mode verify -Dgroups=integration
+
+  compose-smoke:
+    name: compose smoke
+    needs: [contracts, backend, frontend, ai]
+    runs-on: ubuntu-24.04
+    env:
+      GLX_POSTGRES_SUPERUSER_PASSWORD: glx-local-postgres
+      REGISTRY_DB_PASSWORD: glx-local-registry-runtime
+      EXCHANGE_DB_PASSWORD: glx-local-exchange-runtime
+      REGISTRY_MIGRATOR_PASSWORD: glx-local-registry-migrator
+      EXCHANGE_MIGRATOR_PASSWORD: glx-local-exchange-migrator
+      GATEWAY_SESSION_REDIS_PASSWORD: glx-local-redis
+      KEYCLOAK_ADMIN_PASSWORD: glx-local-keycloak
+      MINIO_ROOT_USER: glx-local-minio
+      MINIO_ROOT_PASSWORD: glx-local-minio-password
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - run: cp .env.example .env && env | grep -E '^(GLX_POSTGRES|REGISTRY_DB|EXCHANGE_DB|REGISTRY_MIGRATOR|EXCHANGE_MIGRATOR|GATEWAY_SESSION|KEYCLOAK_ADMIN|MINIO_ROOT)' >> .env
+      - run: docker compose config --quiet
+      - run: docker compose --profile core up -d --wait
+      - run: docker compose --profile core ps
+      - if: always()
+        run: docker compose --profile core logs --no-color
+
+  e2e:
+    name: browser and accessibility smoke
+    needs: compose-smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
+      - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/e2e exec playwright install --with-deps chromium
+      - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/e2e run test
+
+  package-and-scan:
+    name: sbom and security scan
+    needs: [contracts, backend, frontend, ai]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: mvn --batch-mode org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+      - run: docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.0 detect --config=/repo/.gitleaks.toml --source=/repo --no-git
+      - run: |
+          mkdir -p "$RUNNER_TEMP/trivy"
+          trivy_run() { docker run --rm --workdir /repo -v "$PWD:/repo:ro" -v "$RUNNER_TEMP/trivy:/root/.cache/trivy" aquasec/trivy:0.67.0 "$@"; }
+          trivy_run sbom --quiet --exit-code 1 --severity HIGH,CRITICAL /repo/target/bom.json
+          trivy_run fs --quiet --exit-code 1 --severity HIGH,CRITICAL --scanners vuln pnpm-lock.yaml
+          trivy_run fs --quiet --exit-code 1 --severity HIGH,CRITICAL --scanners vuln services/ai-verification/uv.lock
+          for dockerfile in apps/web-portal/Dockerfile services/ai-verification/Dockerfile services/exchange-service/Dockerfile services/gateway-bff/Dockerfile services/registry-mrv-service/Dockerfile; do
+            trivy_run config --quiet --exit-code 1 --severity HIGH,CRITICAL "$dockerfile"
+          done
+
+  windows-facade:
+    name: Windows PowerShell facade
+    needs: changes
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22.12.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - shell: pwsh
+        run: |
+          . ./scripts/Common.ps1
+          foreach ($script in './scripts/bootstrap.ps1', './scripts/dev.ps1', './scripts/verify.ps1', './scripts/seed.ps1') {
+            if (-not (Test-Path $script)) { throw "Missing command facade: $script" }
+          }
+
+  required-summary:
+    name: required summary
+    if: always()
+    needs: [contracts, backend, frontend, ai, backend-integration, compose-smoke, e2e, package-and-scan, windows-facade]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          test '${{ needs.contracts.result }}' = success
+          test '${{ needs.backend.result }}' = success
+          test '${{ needs.frontend.result }}' = success
+          test '${{ needs.ai.result }}' = success
+          test '${{ needs.backend-integration.result }}' = success
+          test '${{ needs.compose-smoke.result }}' = success
+          test '${{ needs.e2e.result }}' = success
+          test '${{ needs.package-and-scan.result }}' = success
+          test '${{ needs.windows-facade.result }}' = success

@@ -1,0 +1,51 @@
+asyncapi: 3.0.0
+info:
+  title: GLX Domain Events
+  version: 0.1.0
+  description: Event foundation only; no business event is published in day-zero bootstrap.
+channels:
+  glx.domain.events:
+    address: glx.domain.events
+    messages:
+      cloudEvent:
+        $ref: '#/components/messages/CloudEvent'
+operations:
+  publishDomainEvent:
+    action: send
+    channel:
+      $ref: '#/channels/glx.domain.events'
+    messages:
+      - $ref: '#/channels/glx.domain.events/messages/cloudEvent'
+components:
+  messages:
+    CloudEvent:
+      name: cloudEvent
+      title: CloudEvents-compatible domain event envelope
+      payload:
+        $ref: '#/components/schemas/CloudEventEnvelope'
+  schemas:
+    CloudEventEnvelope:
+      type: object
+      required: [specversion, id, source, type, time, datacontenttype, correlationid, data]
+      properties:
+        specversion:
+          const: '1.0'
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          format: uri-reference
+        type:
+          type: string
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          const: application/json
+        correlationid:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties: true
