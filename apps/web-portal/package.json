@@ -1,0 +1,40 @@
+{
+  "name": "@glx/web-portal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc --build && vite build",
+    "lint": "eslint . && prettier --check .",
+    "format:check": "prettier --check .",
+    "typecheck": "vue-tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hey-api/client-fetch": "0.13.1",
+    "@tanstack/vue-query": "5.102.8",
+    "pinia": "3.0.4",
+    "vue": "3.5.40",
+    "vue-router": "5.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/vue": "8.1.0",
+    "@types/node": "26.4.0",
+    "@vitejs/plugin-vue": "6.0.8",
+    "@vue/test-utils": "2.5.0",
+    "@vue/tsconfig": "0.9.1",
+    "@eslint/js": "9.39.1",
+    "eslint": "9.39.1",
+    "eslint-plugin-vue": "10.6.1",
+    "globals": "16.5.0",
+    "jsdom": "28.0.0",
+    "prettier": "3.8.2",
+    "typescript-eslint": "8.38.0",
+    "typescript": "5.9.3",
+    "vite": "8.2.0",
+    "vitest": "4.0.16",
+    "vue-tsc": "3.1.5"
+  }
+}

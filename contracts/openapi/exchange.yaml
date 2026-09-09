@@ -1,0 +1,43 @@
+openapi: 3.1.2
+info:
+  title: GLX Exchange API
+  version: 0.1.0
+  description: Initial metadata and error contract; no exchange business operations are exposed yet.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:8082
+security:
+  - bearerJwt: []
+paths:
+  /api/v1/metadata:
+    get:
+      operationId: getExchangeMetadata
+      summary: Get exchange runtime metadata.
+      responses:
+        '200':
+          description: Runtime metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceMetadata'
+        '401':
+          $ref: './shared.yaml#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ServiceMetadata:
+      type: object
+      required: [service, apiVersion, sandbox]
+      properties:
+        service:
+          type: string
+        apiVersion:
+          type: string
+        sandbox:
+          type: boolean

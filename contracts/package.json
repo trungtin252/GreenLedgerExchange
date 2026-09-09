@@ -1,0 +1,20 @@
+{
+  "name": "@glx/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "redocly lint openapi/edge.yaml && redocly lint openapi/registry.yaml && redocly lint openapi/exchange.yaml && asyncapi validate asyncapi/domain-events.yaml && asyncapi validate asyncapi/ai-events.yaml",
+    "bundle": "redocly bundle openapi/edge.yaml --output dist/edge.yaml && redocly bundle openapi/registry.yaml --output dist/registry.yaml && redocly bundle openapi/exchange.yaml --output dist/exchange.yaml",
+    "validate:examples": "node scripts/validate-examples.mjs",
+    "generate": "openapi-ts -i ./openapi/edge.yaml -o ../apps/web-portal/src/generated/api -c @hey-api/client-fetch",
+    "check": "redocly lint openapi/edge.yaml && redocly lint openapi/registry.yaml && redocly lint openapi/exchange.yaml && asyncapi validate asyncapi/domain-events.yaml && asyncapi validate asyncapi/ai-events.yaml && redocly bundle openapi/edge.yaml --output dist/edge.yaml && redocly bundle openapi/registry.yaml --output dist/registry.yaml && redocly bundle openapi/exchange.yaml --output dist/exchange.yaml && node scripts/validate-examples.mjs && openapi-ts -i ./openapi/edge.yaml -o ../apps/web-portal/src/generated/api -c @hey-api/client-fetch && git diff --exit-code -- ../apps/web-portal/src/generated/api"
+  },
+  "devDependencies": {
+    "@asyncapi/cli": "4.1.1",
+    "@hey-api/openapi-ts": "0.95.0",
+    "@redocly/cli": "2.48.0",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
+  }
+}

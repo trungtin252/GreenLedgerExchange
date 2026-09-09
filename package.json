@@ -1,0 +1,25 @@
+{
+  "name": "greenledger-exchange",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "22.12.0",
+    "pnpm": "10.28.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@hey-api/json-schema-ref-parser>js-yaml": "4.3.2"
+    }
+  },
+  "scripts": {
+    "contracts:lint": "pnpm --filter @glx/contracts lint",
+    "contracts:generate": "pnpm --filter @glx/contracts generate",
+    "contracts:check": "pnpm --filter @glx/contracts check",
+    "web:lint": "pnpm --filter @glx/web-portal lint",
+    "web:typecheck": "pnpm --filter @glx/web-portal typecheck",
+    "web:test": "pnpm --filter @glx/web-portal test",
+    "web:build": "pnpm --filter @glx/web-portal build",
+    "e2e": "pnpm --filter @glx/e2e test"
+  }
+}

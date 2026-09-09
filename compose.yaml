@@ -1,0 +1,197 @@
+name: greenledger-exchange
+
+x-local-only: &local-only
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *local-only
+    profiles: [core]
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_USER: glx_admin
+      POSTGRES_PASSWORD: ${GLX_POSTGRES_SUPERUSER_PASSWORD:?Set GLX_POSTGRES_SUPERUSER_PASSWORD in .env}
+      REGISTRY_DB_PASSWORD: ${REGISTRY_DB_PASSWORD:?Set REGISTRY_DB_PASSWORD in .env}
+      EXCHANGE_DB_PASSWORD: ${EXCHANGE_DB_PASSWORD:?Set EXCHANGE_DB_PASSWORD in .env}
+      REGISTRY_MIGRATOR_PASSWORD: ${REGISTRY_MIGRATOR_PASSWORD:?Set REGISTRY_MIGRATOR_PASSWORD in .env}
+      EXCHANGE_MIGRATOR_PASSWORD: ${EXCHANGE_MIGRATOR_PASSWORD:?Set EXCHANGE_MIGRATOR_PASSWORD in .env}
+    ports: ["5432:5432"]
+    volumes:
+      - glx-postgres:/var/lib/postgresql
+      - ./infra/postgres/init/001-databases.sh:/docker-entrypoint-initdb.d/001-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glx_admin -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    <<: *local-only
+    profiles: [core]
+    image: redis:8.4.1-alpine
+    environment:
+      GATEWAY_SESSION_REDIS_PASSWORD: ${GATEWAY_SESSION_REDIS_PASSWORD:?Set GATEWAY_SESSION_REDIS_PASSWORD in .env}
+    command: ["redis-server", "--requirepass", "${GATEWAY_SESSION_REDIS_PASSWORD:?Set GATEWAY_SESSION_REDIS_PASSWORD in .env}"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${GATEWAY_SESSION_REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    <<: *local-only
+    profiles: [core]
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    command: server /data --console-address :9001
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["glx-minio:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    <<: *local-only
+    profiles: [core]
+    image: quay.io/keycloak/keycloak:26.4.1
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: glx-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_HEALTH_ENABLED: "true"
+    ports: ["8180:8080"]
+    volumes:
+      - ./infra/keycloak/realm-glx-local.json:/opt/keycloak/data/import/realm-glx-local.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep -q 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  gateway:
+    <<: *local-only
+    profiles: [apps]
+    build:
+      context: .
+      dockerfile: services/gateway-bff/Dockerfile
+    environment:
+      GLX_ENVIRONMENT: local
+      GLX_COOKIE_SECURE: "false"
+      REDIS_HOST: redis
+      GATEWAY_SESSION_REDIS_PASSWORD: ${GATEWAY_SESSION_REDIS_PASSWORD}
+      OIDC_ISSUER_URI: http://keycloak:8080/realms/glx-local
+      OIDC_CLIENT_ID: glx-bff
+    ports: ["8080:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  registry:
+    <<: *local-only
+    profiles: [apps]
+    build:
+      context: .
+      dockerfile: services/registry-mrv-service/Dockerfile
+    environment:
+      GLX_ENVIRONMENT: local
+      REGISTRY_DB_URL: jdbc:postgresql://postgres:5432/glx_registry
+      REGISTRY_DB_USERNAME: registry_runtime
+      REGISTRY_DB_PASSWORD: ${REGISTRY_DB_PASSWORD}
+      REGISTRY_MIGRATOR_USERNAME: registry_migrator
+      REGISTRY_MIGRATOR_PASSWORD: ${REGISTRY_MIGRATOR_PASSWORD}
+      OIDC_ISSUER_URI: http://keycloak:8080/realms/glx-local
+    ports: ["8081:8081"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  exchange:
+    <<: *local-only
+    profiles: [apps]
+    build:
+      context: .
+      dockerfile: services/exchange-service/Dockerfile
+    environment:
+      GLX_ENVIRONMENT: local
+      EXCHANGE_DB_URL: jdbc:postgresql://postgres:5432/glx_exchange
+      EXCHANGE_DB_USERNAME: exchange_runtime
+      EXCHANGE_DB_PASSWORD: ${EXCHANGE_DB_PASSWORD}
+      EXCHANGE_MIGRATOR_USERNAME: exchange_migrator
+      EXCHANGE_MIGRATOR_PASSWORD: ${EXCHANGE_MIGRATOR_PASSWORD}
+      OIDC_ISSUER_URI: http://keycloak:8080/realms/glx-local
+    ports: ["8082:8082"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8082/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  ai-verification:
+    <<: *local-only
+    profiles: [apps]
+    build:
+      context: ./services/ai-verification
+      dockerfile: Dockerfile
+    environment:
+      GLX_AI_ENVIRONMENT: local
+      GLX_AI_FAKE_READINESS: "true"
+    ports: ["8090:8090"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/readyz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  web:
+    <<: *local-only
+    profiles: [apps]
+    build:
+      context: .
+      dockerfile: apps/web-portal/Dockerfile
+    ports: ["5173:8080"]
+    depends_on:
+      gateway: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  otel:
+    <<: *local-only
+    profiles: [obs]
+    image: otel/opentelemetry-collector-contrib:0.136.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    ports: ["4317:4317", "4318:4318"]
+    volumes:
+      - ./infra/otel/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+
+  wiremock:
+    <<: *local-only
+    profiles: [provider]
+    image: wiremock/wiremock:3.13.1
+    ports: ["9080:8080"]
+    volumes:
+      - ./infra/wiremock/mappings:/home/wiremock/mappings:ro
+
+volumes:
+  glx-postgres:
+  glx-minio:

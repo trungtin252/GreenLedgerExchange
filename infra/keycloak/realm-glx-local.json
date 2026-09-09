@@ -1,0 +1,39 @@
+{
+  "realm": "glx-local",
+  "enabled": true,
+  "displayName": "GLX Local Sandbox",
+  "roles": {
+    "realm": [
+      { "name": "GLX_VIEWER" },
+      { "name": "GLX_OPERATOR" },
+      { "name": "GLX_ADMIN" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "glx-bff",
+      "name": "GLX BFF local client",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:8080/login/oauth2/code/keycloak"],
+      "webOrigins": ["http://localhost:5173", "http://localhost:8080"],
+      "protocol": "openid-connect",
+      "attributes": { "pkce.code.challenge.method": "S256" }
+    }
+  ],
+  "users": [
+    {
+      "username": "demo.user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "realmRoles": ["GLX_VIEWER"],
+      "credentials": [
+        { "type": "password", "value": "glx-local-demo", "temporary": true }
+      ]
+    }
+  ]
+}

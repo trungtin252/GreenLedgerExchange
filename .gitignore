@@ -1,0 +1,56 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDEs and operating systems
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+
+# Java and Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Node and web tooling
+node_modules/
+dist/
+coverage/
+.vite/
+.pnpm-store/
+playwright-report/
+test-results/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+htmlcov/
+
+# Local platform data and generated run-time artifacts
+.local/
+.tools/
+data/
+models/
+datasets/
+artifacts/
+*.sqlite
+*.db
+
+# Logs
+*.log
+
+# Generated contracts are committed deliberately; do not add them here.

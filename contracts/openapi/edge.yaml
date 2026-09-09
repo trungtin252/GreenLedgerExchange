@@ -1,0 +1,86 @@
+openapi: 3.1.2
+info:
+  title: GLX Edge API
+  version: 0.1.0
+  description: Browser-facing BFF contract for the GLX sandbox.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:8080
+security:
+  - cookieSession: []
+paths:
+  /api/v1/me/context:
+    get:
+      operationId: getMeContext
+      summary: Get the authenticated browser context.
+      responses:
+        '200':
+          description: Authenticated context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeContext'
+              examples:
+                local:
+                  value:
+                    environment: local
+                    sandbox: true
+                    profile:
+                      subject: local-demo-user
+                      displayName: Demo User
+                    roles: [ROLE_GLX_VIEWER]
+                    capabilities:
+                      registry.read: true
+                      exchange.read: true
+                    organizations: []
+                    activeOrganizationId: null
+        '401':
+          $ref: './shared.yaml#/components/responses/Problem'
+components:
+  securitySchemes:
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: SESSION
+  schemas:
+    MeContext:
+      type: object
+      required: [environment, sandbox, profile, roles, capabilities, organizations]
+      properties:
+        environment:
+          type: string
+        sandbox:
+          type: boolean
+        profile:
+          type: object
+          required: [subject, displayName]
+          properties:
+            subject:
+              type: string
+            displayName:
+              type: string
+        roles:
+          type: array
+          items:
+            type: string
+        capabilities:
+          type: object
+          additionalProperties:
+            type: boolean
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+        activeOrganizationId:
+          type: [string, 'null']
+    Organization:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
