@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22.12.0
-          cache: pnpm
+          package-manager-cache: false
       - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
       - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/contracts run check
 
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22.12.0
-          cache: pnpm
+          package-manager-cache: false
       - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
       - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run lint && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run typecheck && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run test && npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/web-portal run build
 
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22.12.0
-          cache: pnpm
+          package-manager-cache: false
       - run: npx --yes --package=pnpm@10.28.2 pnpm install --frozen-lockfile
       - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/e2e exec playwright install --with-deps chromium
       - run: npx --yes --package=pnpm@10.28.2 pnpm --filter @glx/e2e run test
@@ -157,6 +157,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22.12.0
+          package-manager-cache: false
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
